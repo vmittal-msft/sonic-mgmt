@@ -20,6 +20,8 @@ from scapy.all import Ether, IP
 from tests.common.dualtor.dual_tor_mock import *
 from tests.common.dualtor.dual_tor_utils import get_t1_ptf_ports
 from tests.common.dualtor.dual_tor_utils import rand_selected_interface
+from tests.common.dualtor.dual_tor_utils import get_ptf_server_intf_index
+from tests.common.dualtor.mux_simulator_control import toggle_all_simulator_ports_to_rand_selected_tor
 from tests.common.dualtor.tunnel_traffic_utils import tunnel_traffic_monitor
 from tests.common.utilities import is_ipv4_address
 from tests.common.fixtures.ptfhost_utils import run_icmp_responder
@@ -57,12 +59,12 @@ def build_encapsulated_ip_packet(
     server_ipv4 = server_ips["server_ipv4"].split("/")[0]
     config_facts = tor.get_running_config_facts()
     try:
-        peer_ipv4_address = [dut_name["address_ipv4"] for dut_name in config_facts["PEER_SWITCH"].values()][0]
+        peer_ipv4_address = [_["address_ipv4"] for _ in config_facts["PEER_SWITCH"].values()][0]
     except IndexError:
         raise ValueError("Failed to get peer ToR address from CONFIG_DB")
 
-    tor_ipv4_address = [addr for addr in config_facts["LOOPBACK_INTERFACE"]["Loopback0"]
-                        if is_ipv4_address(addr.split("/")[0])][0]
+    tor_ipv4_address = [_ for _ in config_facts["LOOPBACK_INTERFACE"]["Loopback0"]
+                        if is_ipv4_address(_.split("/")[0])][0]
     tor_ipv4_address = tor_ipv4_address.split("/")[0]
 
     inner_dscp = random.choice(range(0, 33))
@@ -105,12 +107,12 @@ def build_non_encapsulated_ip_packet(
     server_ipv4 = server_ips["server_ipv4"].split("/")[0]
     config_facts = tor.get_running_config_facts()
     try:
-        peer_ipv4_address = [dut_name["address_ipv4"] for dut_name in config_facts["PEER_SWITCH"].values()][0]
+        peer_ipv4_address = [_["address_ipv4"] for _ in config_facts["PEER_SWITCH"].values()][0]
     except IndexError:
         raise ValueError("Failed to get peer ToR address from CONFIG_DB")
 
-    tor_ipv4_address = [addr for addr in config_facts["LOOPBACK_INTERFACE"]["Loopback0"]
-                        if is_ipv4_address(addr.split("/")[0])][0]
+    tor_ipv4_address = [_ for _ in config_facts["LOOPBACK_INTERFACE"]["Loopback0"]
+                        if is_ipv4_address(_.split("/")[0])][0]
     tor_ipv4_address = tor_ipv4_address.split("/")[0]
 
     dscp = random.choice(range(0, 33))
@@ -213,19 +215,19 @@ def verify_ecn_on_received_packet(
         logging.info("the expected ECN: {0:02b} matching with received ECN: {0:02b}".format(exp_ecn, rec_ecn))
 
 def test_dscp_to_queue_during_decap_on_active(
-    apply_active_state_to_orchagent,
-    build_encapsulated_ip_packet,
-    rand_selected_interface, 
-    ptfadapter,
-    tbinfo, 
-    rand_selected_dut, 
-    tunnel_traffic_monitor, 
-    duthosts, 
-    rand_one_dut_hostname
+    build_encapsulated_ip_packet, request,
+    rand_selected_interface, ptfadapter,
+    tbinfo, rand_selected_dut, tunnel_traffic_monitor, 
+    duthosts, rand_one_dut_hostname
 ):
     """
     Test if DSCP to Q mapping for inner header is matching with outer header during decap on active
     """
+    if is_t0_mocked_dualtor(tbinfo):
+        request.getfixturevalue('apply_active_state_to_orchagent')
+    else:
+        request.getfixturevalue('toggle_all_simulator_ports_to_rand_selected_tor')
+
     tor = rand_selected_dut
     encapsulated_packet = build_encapsulated_ip_packet
     iface, _ = rand_selected_interface
@@ -304,17 +306,18 @@ def test_dscp_to_queue_during_encap_on_standby(
        testutils.send(ptfadapter, int(ptf_t1_intf.strip("eth")), non_encapsulated_packet, count=10)
 
 def test_ecn_during_decap_on_active(
-    apply_active_state_to_orchagent,
-    build_encapsulated_ip_packet,
-    rand_selected_interface, 
-    ptfadapter,
-    tbinfo, 
-    rand_selected_dut, 
-    tunnel_traffic_monitor
+    build_encapsulated_ip_packet, request,
+    rand_selected_interface, ptfadapter,
+    tbinfo, rand_selected_dut, tunnel_traffic_monitor
 ):
     """
     Test if the ECN stamping on inner header is matching with outer during decap on active
     """
+    if is_t0_mocked_dualtor(tbinfo):
+        request.getfixturevalue('apply_active_state_to_orchagent')
+    else:
+        request.getfixturevalue('toggle_all_simulator_ports_to_rand_selected_tor')
+
     tor = rand_selected_dut
     encapsulated_packet = build_encapsulated_ip_packet
     iface, _ = rand_selected_interface
@@ -334,11 +337,8 @@ def test_ecn_during_decap_on_active(
 
 def test_ecn_during_encap_on_standby(
     build_non_encapsulated_ip_packet,
-    rand_selected_interface, 
-    ptfadapter,
-    tbinfo, 
-    rand_selected_dut, 
-    tunnel_traffic_monitor,
+    rand_selected_interface, ptfadapter,
+    tbinfo, rand_selected_dut, tunnel_traffic_monitor,
     write_standby
 ):
     """
