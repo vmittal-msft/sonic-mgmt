@@ -835,7 +835,6 @@ class TunnelDscpToPgMapping(sai_base_test.ThriftInterfaceDataPlane):
                 # The inner DSCP is set to testing value,
                 # and the outer DSCP is set to 0 as it has no impact on remapping
                 # On Nvidia platforms, the dscp mode is pipe and the PG is determined by the outer dscp before decap
-                outer_dscp = inner_dscp if asic_type == 'mellanox' else 0
                 pkt = self._build_testing_pkt(
                     active_tor_mac=active_tor_mac,
                     standby_tor_mac=standby_tor_mac,
@@ -1093,17 +1092,20 @@ class PFCtest(sai_base_test.ThriftInterfaceDataPlane):
             if hwsku == 'DellEMC-Z9332f-M-O16C64' or hwsku == 'DellEMC-Z9332f-O32':
                 # send packets short of triggering pfc
                 send_packet(self, src_port_id, pkt, (pkts_num_egr_mem +
-                                                     pkts_num_leak_out + pkts_num_trig_pfc) // cell_occupancy - 1 - margin)
+                                                     pkts_num_leak_out + pkts_num_trig_pfc) // 
+                                                     cell_occupancy - 1 - margin)
             elif 'cisco-8000' in asic_type:
                 assert (fill_leakout_plus_one(self, src_port_id, dst_port_id,
                                               pkt, int(self.test_params['pg']), asic_type))
                 # Send 1 less packet due to leakout filling
                 send_packet(self, src_port_id, pkt, (pkts_num_leak_out +
-                                                     pkts_num_trig_pfc) // cell_occupancy - 2 - margin)
+                                                     pkts_num_trig_pfc) // 
+                                                     cell_occupancy - 2 - margin)
             else:
                 # send packets short of triggering pfc
                 send_packet(self, src_port_id, pkt, (pkts_num_leak_out +
-                                                     pkts_num_trig_pfc) // cell_occupancy - 1 - margin)
+                                                     pkts_num_trig_pfc) // 
+                                                     cell_occupancy - 1 - margin)
 
             # allow enough time for the dut to sync up the counter values in counters_db
             time.sleep(8)
@@ -1646,9 +1648,6 @@ class PFCXonTest(sai_base_test.ThriftInterfaceDataPlane):
     def runTest(self):
         time.sleep(5)
         switch_init(self.clients)
-        last_pfc_counter = 0
-        recv_port_counters = []
-        transmit_port_counters = []
 
         # Parse input parameters
         dscp = int(self.test_params['dscp'])
@@ -2044,8 +2043,9 @@ class PFCXonTest(sai_base_test.ThriftInterfaceDataPlane):
             sys.stderr.write('{}\n'.format(port_cnt_tbl))
 
            # recv port no pfc
-            assert(recv_counters[pg] == recv_counters_base[pg]), 'unexpectedly trigger PFC for PG {} (counter: {}), at step {} {}'.format(
-                pg, port_counter_fields[pg], step_id, step_desc)
+            assert(recv_counters[pg] == 
+                   recv_counters_base[pg]), 'unexpectedly trigger PFC for PG {} (counter: {}), at step {} {}'.format(
+                   pg, port_counter_fields[pg], step_id, step_desc)
             # recv port no ingress drop
             for cntr in ingress_counters:
                 assert (recv_counters[cntr] <= recv_counters_base[cntr] + COUNTER_MARGIN),\
@@ -3514,7 +3514,8 @@ class PGSharedWatermarkTest(sai_base_test.ThriftInterfaceDataPlane):
 
             if pg_min_pkts_num > 0 and check_leackout_compensation_support(asic_type, hwsku):
                 dynamically_compensate_leakout(self.src_client, asic_type, sai_thrift_read_port_counters,
-                                               port_list['dst'][dst_port_id], TRANSMITTED_PKTS, xmit_counters_history, self, src_port_id, pkt, 40)
+                                               port_list['dst'][dst_port_id], 
+                                               TRANSMITTED_PKTS, xmit_counters_history, self, src_port_id, pkt, 40)
 
             pg_cntrs = sai_thrift_read_pg_counters(
                 self.src_client, port_list['src'][src_port_id])
@@ -3572,9 +3573,11 @@ class PGSharedWatermarkTest(sai_base_test.ThriftInterfaceDataPlane):
                 send_packet(self, src_port_id, pkt, int(pkts_num))
                 time.sleep(8)
 
-                if pg_min_pkts_num == 0 and pkts_num <= 1 + margin and check_leackout_compensation_support(asic_type, hwsku):
+                if pg_min_pkts_num == 0 and pkts_num <= 1 + margin and 
+                                            check_leackout_compensation_support(asic_type, hwsku):
                     dynamically_compensate_leakout(self.src_client, asic_type, sai_thrift_read_port_counters,
-                                                   port_list['dst'][dst_port_id], TRANSMITTED_PKTS, xmit_counters_history, self, src_port_id, pkt, 40)
+                                                   port_list['dst'][dst_port_id], 
+                                                   TRANSMITTED_PKTS, xmit_counters_history, self, src_port_id, pkt, 40)
 
                 # these counters are clear on read, ensure counter polling
                 # is disabled before the test
@@ -3631,7 +3634,8 @@ class PGSharedWatermarkTest(sai_base_test.ThriftInterfaceDataPlane):
 
             if platform_asic and platform_asic == "broadcom-dnx":
                 print("exceeded pkts num sent: %d, expected watermark: %d, actual value: %d" % (
-                    pkts_num, ((expected_wm + cell_occupancy) * (packet_length + internal_hdr_size)), pg_shared_wm_res[pg]), file=sys.stderr)
+                    pkts_num, ((expected_wm + cell_occupancy) * (packet_length + internal_hdr_size)), 
+                                pg_shared_wm_res[pg]), file=sys.stderr)
                 assert (expected_wm * (packet_length + internal_hdr_size) <= (
                         expected_wm + margin + cell_occupancy) * (packet_length + internal_hdr_size))
             else:
@@ -3740,7 +3744,8 @@ class PGHeadroomWatermarkTest(sai_base_test.ThriftInterfaceDataPlane):
 
             if check_leackout_compensation_support(asic_type, hwsku):
                 dynamically_compensate_leakout(self.dst_client, asic_type, sai_thrift_read_port_counters,
-                                               port_list['dst'][dst_port_id], TRANSMITTED_PKTS, xmit_counters_base, self, src_port_id, pkt, 30)
+                                               port_list['dst'][dst_port_id], TRANSMITTED_PKTS, 
+                                               xmit_counters_base, self, src_port_id, pkt, 30)
 
             q_wm_res, pg_shared_wm_res, pg_headroom_wm_res = sai_thrift_read_port_watermarks(
                 self.src_client, port_list['src'][src_port_id])
@@ -3775,7 +3780,7 @@ class PGHeadroomWatermarkTest(sai_base_test.ThriftInterfaceDataPlane):
                     self.src_client, port_list['src'][src_port_id])
 
                 print("lower bound: %d, actual value: %d, upper bound: %d" % ((expected_wm - margin) * cell_size *
-                                                                              cell_occupancy, pg_headroom_wm_res[pg], ((expected_wm + margin) * cell_size * cell_occupancy)),
+                        cell_occupancy, pg_headroom_wm_res[pg], ((expected_wm + margin) * cell_size * cell_occupancy)),
                       file=sys.stderr)
 
                 if platform_asic and platform_asic == "broadcom-dnx":
@@ -4179,7 +4184,7 @@ class QSharedWatermarkTest(sai_base_test.ThriftInterfaceDataPlane):
                 print("Received packets: %d" %
                       (pg_cntrs[queue] - pg_cntrs_base[queue]), file=sys.stderr)
                 print("lower bound: %d, actual value: %d, upper bound: %d" % ((expected_wm - margin)
-                                                                              * cell_size, q_wm_res[queue], (expected_wm + margin) * cell_size), file=sys.stderr)
+                                      * cell_size, q_wm_res[queue], (expected_wm + margin) * cell_size), file=sys.stderr)
 
                 self.show_stats('Fill queue shared', asic_type,
                                 queue, src_port_id, dst_port_id, ingress_counters, egress_counters,
@@ -4389,8 +4394,10 @@ class BufferPoolWatermarkTest(sai_base_test.ThriftInterfaceDataPlane):
                 time.sleep(8)
                 buffer_pool_wm = sai_thrift_read_buffer_pool_watermark(
                     self.src_client, buf_pool_roid) - buffer_pool_wm_base
-                print("lower bound (-%d): %d, actual value: %d, upper bound (+%d): %d" % (lower_bound_margin, (expected_wm - lower_bound_margin)
-                                                                                          * cell_size, buffer_pool_wm, upper_bound_margin, (expected_wm + upper_bound_margin) * cell_size), file=sys.stderr)
+                print("lower bound (-%d): %d, actual value: %d, upper bound (+%d): %d" 
+                        % (lower_bound_margin, (expected_wm - lower_bound_margin)
+                        * cell_size, buffer_pool_wm, upper_bound_margin, 
+                        (expected_wm + upper_bound_margin) * cell_size), file=sys.stderr)
                 assert(buffer_pool_wm <= (expected_wm +
                                           upper_bound_margin) * cell_size)
                 assert((expected_wm - lower_bound_margin)
