@@ -571,7 +571,6 @@ class SonicAsic(object):
         return self.shell(cmd)
 
     def get_portchannels_and_members_in_ns(self, tbinfo):
-
         """
         Get a portchannels and their members in this namespace.
 

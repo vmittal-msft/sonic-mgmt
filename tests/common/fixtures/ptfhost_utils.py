@@ -402,11 +402,11 @@ def run_garp_service(duthost, ptfhost, tbinfo, change_mac_addresses, request):
             server_ipv6 = ip_interface(config['server_ipv6']).ip
 
             garp_config[ptf_port_index] = {
-                                            'dut_mac': '{}'.format(dut_mac),
-                                            'dst_ipv6': '{}'.format(dst_ipv6),
-                                            'target_ip': '{}'.format(server_ip),
-                                            'target_ipv6': '{}'.format(server_ipv6)
-                                        }
+                'dut_mac': '{}'.format(dut_mac),
+                'dst_ipv6': '{}'.format(dst_ipv6),
+                'target_ip': '{}'.format(server_ip),
+                'target_ipv6': '{}'.format(server_ipv6)
+            }
 
         ptfhost.copy(src=os.path.join(SCRIPTS_SRC_DIR, GARP_SERVICE_PY), dest=OPT_DIR)
 
@@ -484,7 +484,7 @@ def ptf_test_port_map(ptfhost, tbinfo, duthosts, mux_server_url, duts_running_co
                             dut_port = a_dut_port
                             router_mac = \
                                 duts_running_config_facts[duthosts[target_dut_index].hostname][list_idx][1][
-                                         'DEVICE_METADATA']['localhost']['mac'].lower()
+                                    'DEVICE_METADATA']['localhost']['mac'].lower()
                             asic_idx = idx
                             break
             ports_map[ptf_port] = {
@@ -577,7 +577,7 @@ def ptf_test_port_map_active_active(ptfhost, tbinfo, duthosts, mux_server_url, d
                             dut_port = a_dut_port
                             router_mac = \
                                 duts_running_config_facts[duthosts[target_dut_index].hostname][list_idx][1][
-                                         'DEVICE_METADATA']['localhost']['mac'].lower()
+                                    'DEVICE_METADATA']['localhost']['mac'].lower()
                             asic_idx = idx
                             break
             ports_map[ptf_port] = {

@@ -59,6 +59,7 @@ def ignore_expected_loganalyzer_exception(get_src_dst_asic_and_duts, loganalyzer
         for a_dut in get_src_dst_asic_and_duts['all_duts']:
             loganalyzer[a_dut.hostname].ignore_regex.extend(ignore_regex)
 
+
 class TestQosSai(QosSaiBase):
     """TestQosSai derives from QosSaiBase and contains collection of QoS SAI test cases.
 
@@ -535,7 +536,7 @@ class TestQosSai(QosSaiBase):
         )
 
     @pytest.mark.parametrize("LosslessVoqProfile", ["lossless_voq_1", "lossless_voq_2",
-                             "lossless_voq_3", "lossless_voq_4"])
+                                                    "lossless_voq_3", "lossless_voq_4"])
     def testQosSaiLosslessVoq(
             self, LosslessVoqProfile, ptfhost, dutTestParams, dutConfig, dutQosConfig,
             singleMemberPortStaticRoute, nearbySourcePorts, get_src_dst_asic_and_duts

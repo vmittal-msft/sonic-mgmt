@@ -677,7 +677,7 @@ def creds_on_dut(duthost):
         r'qos\.yml',
         r'sku-sensors-data\.yml',
         r'mux_simulator_http_port_map\.yml'
-        ]
+    ]
     files = glob.glob("../ansible/group_vars/all/*.yml")
     files += glob.glob("../ansible/vars/*.yml")
     for group in groups:
@@ -1315,6 +1315,8 @@ def pfc_pause_delay_test_params(request):
 
 _frontend_hosts_per_hwsku_per_module = {}
 _hosts_per_hwsku_per_module = {}
+
+
 def pytest_generate_tests(metafunc):        # noqa E302
     # The topology always has atleast 1 dut
     dut_fixture_name = None
@@ -1628,17 +1630,17 @@ def enable_l2_mode(duthosts, tbinfo, backup_and_restore_config_db_session):     
         mgmt_ip, mgmt_gw, hwsku = get_l2_info(dut)
         # step 1
         base_config_db = {
-                            "MGMT_INTERFACE": {
-                                "eth0|{}".format(mgmt_ip): {
-                                    "gwaddr": "{}".format(mgmt_gw)
-                                }
-                            },
-                            "DEVICE_METADATA": {
-                                "localhost": {
-                                    "hostname": "sonic"
-                                }
-                            }
-                        }
+            "MGMT_INTERFACE": {
+                "eth0|{}".format(mgmt_ip): {
+                    "gwaddr": "{}".format(mgmt_gw)
+                }
+            },
+            "DEVICE_METADATA": {
+                "localhost": {
+                    "hostname": "sonic"
+                }
+            }
+        }
 
         if is_dualtor:
             base_config_db["DEVICE_METADATA"]["localhost"]["subtype"] = "DualToR"
@@ -1788,8 +1790,8 @@ def dut_test_params(duthosts, enum_rand_one_per_hwsku_frontend_hostname, tbinfo,
         "basicParams": {
             "router_mac": duthost.facts["router_mac"],
             "server": duthost.host.options['inventory_manager'].get_host(
-                        duthost.hostname
-                    ).vars['ansible_host'],
+                duthost.hostname
+            ).vars['ansible_host'],
             "port_map_file": ptf_portmap_file,
             "sonic_asic_type": duthost.facts['asic_type'],
             "sonic_version": duthost.os_version,
