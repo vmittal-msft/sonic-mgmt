@@ -1,6 +1,6 @@
 qos_params:
     j2c+:
-        topo-t2_single_node_max:
+        topo-t2_single_node_max-1-1-1:
             400000_50m:
                 pkts_num_leak_out: 140
                 internal_hdr_size: 48
