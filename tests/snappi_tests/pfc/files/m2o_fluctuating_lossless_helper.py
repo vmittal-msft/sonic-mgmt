@@ -291,7 +291,23 @@ def run_m2o_fluctuating_lossless_test(api,
     rx_pkts_1 = get_interface_stats(ingress_dut1, ingress_port1)[ingress_dut1.hostname][ingress_port1]['rx_ok']
     rx_pkts_2 = get_interface_stats(ingress_dut2, ingress_port2)[ingress_dut2.hostname][ingress_port2]['rx_ok']
     total_rx_pkts = rx_pkts_1 + rx_pkts_2
-    # Fetch relevant statistics
+
+    # Expected per-Background-Flow loss is derived purely from the egress DWRR
+    # scheduler config, so it is valid for both plain and MACsec runs.
+    expected_bg_loss_percent = get_expected_bg_loss_percent(
+        egress_duthost=egress_duthost,
+        test_prio_list=test_prio_list,
+        test_flow_rate_percent=TEST_FLOW_AGGR_RATE_PERCENT,
+        bg_prio_list=bg_prio_list,
+        bg_flow_rate_percent=BG_FLOW_AGGR_RATE_PERCENT,
+        asic_value=rx_port.get('asic_value'),
+        port=dut_tx_port)
+
+    logger.info('Expected per-Background-Flow loss: {:.2f}% (tolerance +/- {}%)'.format(
+        expected_bg_loss_percent, BG_LOSS_TOLERANCE_PERCENT))
+
+    # DUT-counter based drop verification is skipped for MACsec runs since the
+    # encrypted overhead makes the raw interface drop counters unreliable.
     if not ptype:
         if duthost.facts['switch_type'] == "voq":
             pkt_drop_1_ingress = get_interface_stats(
@@ -307,15 +323,6 @@ def run_m2o_fluctuating_lossless_test(api,
             pkt_drop = get_interface_stats(egress_duthost, dut_tx_port)[egress_duthost.hostname][dut_tx_port]['tx_drp']
             drop_percentage = (100 * pkt_drop) / total_rx_pkts
 
-        expected_bg_loss_percent = get_expected_bg_loss_percent(
-            egress_duthost=egress_duthost,
-            test_prio_list=test_prio_list,
-            test_flow_rate_percent=TEST_FLOW_AGGR_RATE_PERCENT,
-            bg_prio_list=bg_prio_list,
-            bg_flow_rate_percent=BG_FLOW_AGGR_RATE_PERCENT,
-            asic_value=rx_port.get('asic_value'),
-            port=dut_tx_port)
-
         expected_drop_percentage = get_expected_total_drop_percent(
             test_flow_rate_percent=TEST_FLOW_AGGR_RATE_PERCENT,
             bg_prio_list=bg_prio_list,
@@ -327,19 +334,13 @@ def run_m2o_fluctuating_lossless_test(api,
             'FAIL: Drop packets must be around {:.2f}% (got {:.2f}%)'.format(
                 expected_drop_percentage, drop_percentage))
 
-        logger.info('Expected per-Background-Flow loss: {:.2f}% (tolerance +/- {}%)'.format(
-            expected_bg_loss_percent, BG_LOSS_TOLERANCE_PERCENT))
-
     """ Verify Results """
-    if not ptype:
-        verify_m2o_fluctuating_lossless_result(flow_stats,
-                                               tx_port,
-                                               rx_port,
-                                               expected_bg_loss_percent)
-    else:
-        verify_m2o_fluctuating_lossless_result_for_macsec(flow_stats,
-                                                          tx_port,
-                                                          rx_port)
+    # Snappi per-flow loss metrics are transparent to MACsec, so the same
+    # loss-based verification applies to both plain and MACsec runs.
+    verify_m2o_fluctuating_lossless_result(flow_stats,
+                                           tx_port,
+                                           rx_port,
+                                           expected_bg_loss_percent)
 
 
 def __gen_traffic(testbed_config,
@@ -653,10 +654,3 @@ def verify_m2o_fluctuating_lossless_result(rows,
     pytest_assert(abs(avg_loss - expected_bg_loss_percent) < BG_LOSS_TOLERANCE_PERCENT,
                   "Each Background Flow must have an avg of {:.2f}% loss (got {:.2f}%)".format(
                       expected_bg_loss_percent, avg_loss))
-
-
-def verify_m2o_fluctuating_lossless_result_for_macsec(rows,
-                                                      tx_port,
-                                                      rx_port):
-    # TODO: implement MACsec-specific result verification
-    logger.info("MACsec result verification not yet implemented for m2o fluctuating lossless test")

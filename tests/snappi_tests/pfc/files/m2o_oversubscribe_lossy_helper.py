@@ -5,6 +5,7 @@
 # Compiled at: 2023-02-10 09:15:26
 from math import ceil                                                                               # noqa: F401
 import logging                                                                                      # noqa: F401
+import sys
 from tests.common.helpers.assertions import pytest_assert, pytest_require                           # noqa: F401
 from tests.common.fixtures.conn_graph_facts import conn_graph_facts, fanout_graph_facts             # noqa: F401
 from tests.common.snappi_tests.snappi_helpers import get_dut_port_id                                # noqa: F401
@@ -66,6 +67,8 @@ def run_pfc_m2o_oversubscribe_lossy_test(api,
     if snappi_extra_params is None:
         snappi_extra_params = SnappiTestParams()
 
+    ptype = "--snappi_macsec" in sys.argv
+
     # Traffic flow:
     # tx_port (TGEN) --- ingress DUT --- egress DUT --- rx_port (TGEN)
 
@@ -124,7 +127,8 @@ def run_pfc_m2o_oversubscribe_lossy_test(api,
                   data_flow_dur_sec=DATA_FLOW_DURATION_SEC,
                   data_pkt_size=DATA_PKT_SIZE,
                   prio_dscp_map=prio_dscp_map,
-                  no_of_lossy_streams=no_of_test_streams)
+                  no_of_lossy_streams=no_of_test_streams,
+                  snappi_extra_params=snappi_extra_params)
 
     flows = testbed_config.flows
     all_flow_names = [flow.name for flow in flows]
@@ -144,28 +148,30 @@ def run_pfc_m2o_oversubscribe_lossy_test(api,
     ingress_dut2 = tx_port[1]['duthost']
     ingress_port1 = tx_port[0]['peer_port']
     ingress_port2 = tx_port[1]['peer_port']
-    rx_pkts_1 = get_interface_stats(ingress_dut1, ingress_port1)[ingress_dut1.hostname][ingress_port1]['rx_ok']
-    rx_pkts_2 = get_interface_stats(ingress_dut2, ingress_port2)[ingress_dut2.hostname][ingress_port2]['rx_ok']
-    total_rx_pkts = rx_pkts_1 + rx_pkts_2
-    # Fetch relevant statistics
-    if duthost.facts['switch_type'] == "voq":
-        pkt_drop_1_ingress = get_interface_stats(
-            ingress_dut1, ingress_port1
-        )[ingress_dut1.hostname][ingress_port1]['rx_drp']
-        pkt_drop_2_ingress = get_interface_stats(
-            ingress_dut2, ingress_port2
-        )[ingress_dut2.hostname][ingress_port2]['rx_drp']
-        total_pkt_drop_ingress = pkt_drop_1_ingress + pkt_drop_2_ingress
-        drop_percentage = (100 * total_pkt_drop_ingress) / total_rx_pkts
+    if not ptype:
+        rx_pkts_1 = get_interface_stats(ingress_dut1, ingress_port1)[ingress_dut1.hostname][ingress_port1]['rx_ok']
+        rx_pkts_2 = get_interface_stats(ingress_dut2, ingress_port2)[ingress_dut2.hostname][ingress_port2]['rx_ok']
+        total_rx_pkts = rx_pkts_1 + rx_pkts_2
+        # Fetch relevant statistics
+        if duthost.facts['switch_type'] == "voq":
+            pkt_drop_1_ingress = get_interface_stats(
+                ingress_dut1, ingress_port1
+            )[ingress_dut1.hostname][ingress_port1]['rx_drp']
+            pkt_drop_2_ingress = get_interface_stats(
+                ingress_dut2, ingress_port2
+            )[ingress_dut2.hostname][ingress_port2]['rx_drp']
+            total_pkt_drop_ingress = pkt_drop_1_ingress + pkt_drop_2_ingress
+            drop_percentage = (100 * total_pkt_drop_ingress) / total_rx_pkts
 
-    else:
-        pkt_drop = get_interface_stats(egress_duthost, dut_tx_port)[egress_duthost.hostname][dut_tx_port]['tx_drp']
-        drop_percentage = (100 * pkt_drop) / total_rx_pkts
+        else:
+            pkt_drop = get_interface_stats(egress_duthost, dut_tx_port)[egress_duthost.hostname][dut_tx_port]['tx_drp']
+            drop_percentage = (100 * pkt_drop) / total_rx_pkts
 
-    target_drop_percentage = 10
-    if duthost.facts.get("platform_asic") == "broadcom-dnx":
-        target_drop_percentage = 9
-    pytest_assert(abs(drop_percentage - target_drop_percentage) < 1, 'FAIL: Drop packets must be around 10 percent')
+        target_drop_percentage = 10
+        if duthost.facts.get("platform_asic") == "broadcom-dnx":
+            target_drop_percentage = 9
+        pytest_assert(abs(drop_percentage - target_drop_percentage) < 1,
+                      'FAIL: Drop packets must be around 10 percent')
 
     """ Verify Results """
     verify_m2o_oversubscribe_lossy_result(flow_stats,
@@ -204,7 +210,8 @@ def __gen_traffic(testbed_config,
                   data_flow_dur_sec,
                   data_pkt_size,
                   prio_dscp_map,
-                  no_of_lossy_streams):
+                  no_of_lossy_streams,
+                  snappi_extra_params):
 
     """
     Generate configurations of flows under all to all traffic pattern, including
@@ -241,7 +248,8 @@ def __gen_traffic(testbed_config,
                      flow_dur_sec=data_flow_dur_sec,
                      data_pkt_size=data_pkt_size,
                      prio_dscp_map=prio_dscp_map,
-                     no_of_streams=no_of_lossy_streams)
+                     no_of_streams=no_of_lossy_streams,
+                     snappi_extra_params=snappi_extra_params)
 
     __gen_data_flows(testbed_config=testbed_config,
                      port_config_list=port_config_list,
@@ -253,7 +261,8 @@ def __gen_traffic(testbed_config,
                      flow_dur_sec=data_flow_dur_sec,
                      data_pkt_size=data_pkt_size,
                      prio_dscp_map=prio_dscp_map,
-                     no_of_streams=1)
+                     no_of_streams=1,
+                     snappi_extra_params=snappi_extra_params)
 
 
 def __gen_data_flows(testbed_config,
@@ -266,7 +275,8 @@ def __gen_data_flows(testbed_config,
                      flow_dur_sec,
                      data_pkt_size,
                      prio_dscp_map,
-                     no_of_streams):
+                     no_of_streams,
+                     snappi_extra_params):
     """
     Generate the configuration for data flows
 
@@ -299,7 +309,8 @@ def __gen_data_flows(testbed_config,
                             flow_dur_sec=flow_dur_sec,
                             data_pkt_size=data_pkt_size,
                             prio_dscp_map=prio_dscp_map,
-                            no_of_streams=no_of_streams)
+                            no_of_streams=no_of_streams,
+                            snappi_extra_params=snappi_extra_params)
 
 
 def __gen_data_flow(testbed_config,
@@ -312,7 +323,8 @@ def __gen_data_flow(testbed_config,
                     flow_dur_sec,
                     data_pkt_size,
                     prio_dscp_map,
-                    no_of_streams):
+                    no_of_streams,
+                    snappi_extra_params):
     """
     Generate the configuration for a data flow
 
@@ -335,41 +347,85 @@ def __gen_data_flow(testbed_config,
     tx_port_config = next((x for x in port_config_list if x.id == src_port_id), None)
     rx_port_config = next((x for x in port_config_list if x.id == dst_port_id), None)
     tx_mac = tx_port_config.mac
+    ptype = "--snappi_macsec" in sys.argv
     if tx_port_config.gateway == rx_port_config.gateway and tx_port_config.prefix_len == rx_port_config.prefix_len:
         rx_mac = rx_port_config.mac
     else:
         rx_mac = tx_port_config.gateway_mac
 
     flow = testbed_config.flows.flow(name='{} {} -> {}'.format(flow_name_prefix, src_port_id, dst_port_id))[-1]
-    flow.tx_rx.port.tx_name = testbed_config.ports[src_port_id].name
-    flow.tx_rx.port.rx_name = testbed_config.ports[dst_port_id].name
-    eth, ipv4, udp = flow.packet.ethernet().ipv4().udp()
-
-    eth.src.value = tx_mac
-    eth.dst.value = rx_mac
-
-    if pfcQueueGroupSize == 8:
-        if 'Test Flow' in flow.name:
-            eth.pfc_queue.value = 1
-        elif 'Background Flow 1 -> 0' in flow.name:
-            eth.pfc_queue.value = flow_prio[0]
-        elif 'Background Flow 2 -> 0' in flow.name:
-            eth.pfc_queue.value = flow_prio[1]
+    if ptype:
+        # MACsec: build device-based flows between the encrypted TGEN secure
+        # entities. The rx endpoint is selected from the non-macsec device pool
+        # (indexed by priority) and the tx endpoint is the per-port macsec device
+        # (last two devices in the config).
+        if 'Test Flow 1 -> 0' in flow.name:
+            flow.tx_rx.device.tx_names = [
+                testbed_config.devices[len(testbed_config.devices)-2].ethernets[0].ipv4_addresses[0].name
+            ]
+            flow.tx_rx.device.rx_names = [
+                testbed_config.devices[flow_prio[0]].ethernets[0].ipv4_addresses[0].name
+            ]
+            fp = flow_prio[0]
+        elif 'Test Flow 2 -> 0' in flow.name:
+            flow.tx_rx.device.tx_names = [
+                testbed_config.devices[len(testbed_config.devices)-1].ethernets[0].ipv4_addresses[0].name
+            ]
+            flow.tx_rx.device.rx_names = [
+                testbed_config.devices[flow_prio[1]].ethernets[0].ipv4_addresses[0].name
+            ]
+            fp = flow_prio[1]
+        if 'Background Flow' in flow.name:
+            if 'Background Flow 1 -> 0' in flow.name:
+                flow.tx_rx.device.tx_names = [
+                    testbed_config.devices[len(testbed_config.devices)-2].ethernets[0].ipv4_addresses[0].name
+                ]
+            else:
+                flow.tx_rx.device.tx_names = [
+                    testbed_config.devices[len(testbed_config.devices)-1].ethernets[0].ipv4_addresses[0].name
+                ]
+            flow.tx_rx.device.rx_names = [
+                testbed_config.devices[1].ethernets[0].ipv4_addresses[0].name
+            ]
+            fp = 1
+        flow.tx_rx.device.mode = flow.tx_rx.device.ONE_TO_ONE
+        flow.packet.ethernet().ipv4()
+        ipv4 = flow.packet[-1]
+        eth = flow.packet[-2]
+        eth.src.value = tx_mac
+        eth.dst.value = rx_mac
+        eth.pfc_queue.value = fp
+        snappi_extra_params.flow_name_prio_map[flow.name] = fp
     else:
-        if 'Flow 1 -> 0' in flow.name:
-            eth.pfc_queue.value = pfcQueueValueDict[flow_prio[0]]
-        elif 'Flow 2 -> 0' in flow.name:
-            eth.pfc_queue.value = pfcQueueValueDict[flow_prio[1]]
+        flow.tx_rx.port.tx_name = testbed_config.ports[src_port_id].name
+        flow.tx_rx.port.rx_name = testbed_config.ports[dst_port_id].name
+        eth, ipv4, udp = flow.packet.ethernet().ipv4().udp()
 
-    global UDP_PORT_START
-    src_port = UDP_PORT_START
-    UDP_PORT_START += no_of_streams
-    udp.src_port.increment.start = src_port
-    udp.src_port.increment.step = 1
-    udp.src_port.increment.count = no_of_streams
+        eth.src.value = tx_mac
+        eth.dst.value = rx_mac
 
-    ipv4.src.value = tx_port_config.ip
-    ipv4.dst.value = gen_data_flow_dest_ip(rx_port_config.ip)
+        if pfcQueueGroupSize == 8:
+            if 'Test Flow' in flow.name:
+                eth.pfc_queue.value = 1
+            elif 'Background Flow 1 -> 0' in flow.name:
+                eth.pfc_queue.value = flow_prio[0]
+            elif 'Background Flow 2 -> 0' in flow.name:
+                eth.pfc_queue.value = flow_prio[1]
+        else:
+            if 'Flow 1 -> 0' in flow.name:
+                eth.pfc_queue.value = pfcQueueValueDict[flow_prio[0]]
+            elif 'Flow 2 -> 0' in flow.name:
+                eth.pfc_queue.value = pfcQueueValueDict[flow_prio[1]]
+
+        global UDP_PORT_START
+        src_port = UDP_PORT_START
+        UDP_PORT_START += no_of_streams
+        udp.src_port.increment.start = src_port
+        udp.src_port.increment.step = 1
+        udp.src_port.increment.count = no_of_streams
+
+        ipv4.src.value = tx_port_config.ip
+        ipv4.dst.value = gen_data_flow_dest_ip(rx_port_config.ip)
     ipv4.priority.choice = ipv4.priority.DSCP
     flow.duration.fixed_seconds.delay.nanoseconds = 0
     if 'Background Flow 1 -> 0' in flow.name:
