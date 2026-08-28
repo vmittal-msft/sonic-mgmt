@@ -1679,10 +1679,10 @@ def __intf_config_macsec(config, port_config_list, duthost, snappi_ports, setup=
             kay1_psk1.cak_value = all_values['snappi']['cak_value']
 
             kay1_psk1.start_offset_time.hh = 0
-            kay1_psk1.start_offset_time.mm = 22
+            kay1_psk1.start_offset_time.mm = 0
 
             kay1_psk1.end_offset_time.hh = 0
-            kay1_psk1.end_offset_time.hh = 0
+            kay1_psk1.end_offset_time.mm = 0
 
             # Rekey mode
             kay_rekey_mode = kay1.basic.rekey_mode
